@@ -1,0 +1,5 @@
+{
+  "name": "Cosmos Explorer",
+  "description": "An educational 3D simulation of the solar system with realistic orbits, textures, and interactive HUD.",
+  "requestFramePermissions": []
+}

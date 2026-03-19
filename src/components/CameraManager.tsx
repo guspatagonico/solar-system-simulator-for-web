@@ -1,0 +1,119 @@
+import React, { useRef, useEffect, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
+import { SOLAR_SYSTEM_DATA, SCALE_FACTORS } from '../constants';
+
+interface Props {
+  focusedBodyId: string | null;
+  visualEnhancement: number;
+}
+
+const CameraManager: React.FC<Props> = ({ focusedBodyId, visualEnhancement }) => {
+  const { camera, scene } = useThree();
+  const [lastId, setLastId] = useState<string | null>(null);
+  const isTransitioning = useRef(false);
+  const transitionStartTime = useRef(0);
+  const transitionDuration = 1.5; // seconds
+  
+  const startCamPos = useRef(new THREE.Vector3());
+  const startTargetPos = useRef(new THREE.Vector3());
+
+  const lastWorldPos = useRef(new THREE.Vector3());
+
+  // Handle target change
+  useEffect(() => {
+    if (focusedBodyId !== lastId) {
+      setLastId(focusedBodyId);
+      if (focusedBodyId) {
+        isTransitioning.current = true;
+        transitionStartTime.current = 0; // Reset in useFrame
+        
+        startCamPos.current.copy(camera.position);
+        const controls = (camera as any).controls || (window as any).controls;
+        if (controls) {
+          startTargetPos.current.copy(controls.target);
+        }
+
+        // Initialize lastWorldPos for relative motion
+        const body = scene.getObjectByName(focusedBodyId);
+        if (body) {
+          body.getWorldPosition(lastWorldPos.current);
+        }
+      }
+    }
+  }, [focusedBodyId, lastId, camera, scene]);
+
+  useFrame((state, delta) => {
+    if (!focusedBodyId) return;
+
+    const body = scene.getObjectByName(focusedBodyId);
+    if (!body) return;
+
+    const worldPos = new THREE.Vector3();
+    body.getWorldPosition(worldPos);
+
+    const controls = (state as any).controls;
+    if (!controls) return;
+
+    if (isTransitioning.current) {
+      if (transitionStartTime.current === 0) {
+        transitionStartTime.current = state.clock.elapsedTime;
+      }
+
+      const elapsed = state.clock.elapsedTime - transitionStartTime.current;
+      const t = Math.min(elapsed / transitionDuration, 1);
+      const ease = 1 - Math.pow(1 - t, 3); // Cubic ease out
+
+      // Calculate ideal distance for the transition
+      const bodyData = SOLAR_SYSTEM_DATA.find(d => d.id === focusedBodyId);
+      let targetDistance = 500;
+      let visualRadius = 10;
+
+      if (bodyData) {
+        const baseRadius = bodyData.radius * SCALE_FACTORS.PLANET_SIZE;
+        const distortionFactor = bodyData.type === 'star' ? 1 : Math.pow(6371 / bodyData.radius, 0.3);
+        const enhancement = bodyData.type === 'star' ? 1 : visualEnhancement;
+        visualRadius = baseRadius * enhancement * distortionFactor;
+        targetDistance = visualRadius * 5;
+      }
+
+      // Interpolate target
+      controls.target.lerpVectors(startTargetPos.current, worldPos, ease);
+
+      // Interpolate camera position to a good viewing angle/distance
+      const direction = camera.position.clone().sub(startTargetPos.current).normalize();
+      if (direction.length() === 0) direction.set(0, 0, 1);
+      
+      const idealPos = worldPos.clone().add(direction.multiplyScalar(targetDistance));
+      camera.position.lerpVectors(startCamPos.current, idealPos, ease);
+
+      if (t >= 1) {
+        isTransitioning.current = false;
+      }
+      
+      // Update limits
+      controls.minDistance = visualRadius * 1.5;
+      if (focusedBodyId === 'sun') {
+        controls.maxDistance = 10000;
+      } else {
+        controls.maxDistance = visualRadius * 50;
+      }
+      
+      lastWorldPos.current.copy(worldPos);
+    } else {
+      // Relative motion follow:
+      // Apply the planet's movement to the camera and target
+      // This preserves user's pan, zoom, and rotation offsets
+      const movement = worldPos.clone().sub(lastWorldPos.current);
+      
+      controls.target.add(movement);
+      camera.position.add(movement);
+      
+      lastWorldPos.current.copy(worldPos);
+    }
+  });
+
+  return null;
+};
+
+export default CameraManager;
