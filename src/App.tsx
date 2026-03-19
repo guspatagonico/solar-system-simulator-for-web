@@ -12,12 +12,13 @@ import CameraManager from './components/CameraManager';
 
 const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>({
-    timeScale: 0.1,
-    visualEnhancement: 200,
+    timeScale: 10000,
+    visualEnhancement: 16,
     showOrbits: true,
+    showLabels: true,
     focusedBodyId: 'sun',
     isPaused: false,
-    ambientIntensity: 0.5,
+    ambientIntensity: 1.5,
   });
 
   const focusedBody = useMemo(() => 

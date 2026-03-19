@@ -21,12 +21,15 @@ export interface CelestialBodyData {
     opacity: number;
     cloudsUrl?: string;
   };
+  bumpUrl?: string;
+  specularUrl?: string;
 }
 
 export interface SimulationState {
   timeScale: number;
   visualEnhancement: number; // 1 = realistic, higher = visual enhancement (scale distortion)
   showOrbits: boolean;
+  showLabels: boolean;
   focusedBodyId: string | null;
   isPaused: boolean;
   ambientIntensity: number;

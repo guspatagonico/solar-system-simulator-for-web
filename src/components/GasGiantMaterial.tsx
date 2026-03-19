@@ -181,11 +181,11 @@ const GasGiantMaterial: React.FC<Props> = ({ texture, color, id }) => {
       // We can pass the modelMatrix's position or just use the varying.
       
       // Let's stick to a simpler "ambient + diffuse" that ensures visibility
-      float intensity = max(dot(vNormal, vec3(0.0, 0.0, 1.0)), 0.25); // Increased minimum ambient to 0.25
+      float intensity = max(dot(vNormal, vec3(0.0, 0.0, 1.0)), 0.45); // Increased minimum ambient to 0.45
       
       // Add a rim light effect to help visibility in the dark
       float rim = 1.0 - max(dot(vNormal, vec3(0.0, 0.0, 1.0)), 0.0);
-      rim = pow(rim, 3.0) * 0.3;
+      rim = pow(rim, 2.0) * 0.5; // Stronger and wider rim light
       
       gl_FragColor = vec4(finalColor * intensity + (uColor * rim), 1.0);
     }

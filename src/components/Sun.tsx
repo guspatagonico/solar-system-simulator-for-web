@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { SCALE_FACTORS } from '../constants';
 import { SimulationState } from '../types';
 
@@ -64,7 +65,8 @@ const Sun: React.FC<Props> = ({ radius, state }) => {
     const time = timeRef.current;
     if (meshRef.current) {
       (meshRef.current.material as THREE.ShaderMaterial).uniforms.time.value = time;
-      meshRef.current.rotation.y += 0.001 * state.timeScale;
+      const rotationSpeed = (delta * state.timeScale * Math.PI * 2) / (25.4 * SCALE_FACTORS.TIME);
+      meshRef.current.rotation.y += rotationSpeed;
     }
     if (glowRef.current) {
       glowRef.current.rotation.y -= 0.002 * state.timeScale;
@@ -105,6 +107,28 @@ const Sun: React.FC<Props> = ({ radius, state }) => {
       />
       <ambientLight intensity={state.ambientIntensity} />
       <directionalLight intensity={0.3 * (state.ambientIntensity * 2)} position={[5, 5, 5]} />
+
+      {/* Floating Label */}
+      {state.showLabels && (
+        <Html
+          position={[0, visualRadius + 5, 0]}
+          center
+          occlude
+          style={{
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        >
+          <div className="flex flex-col items-center">
+            <div className="px-3 py-1 bg-yellow-500/20 backdrop-blur-md border border-yellow-500/40 rounded-full whitespace-nowrap shadow-[0_0_15px_rgba(234,179,8,0.3)]">
+              <span className="text-xs font-bold text-yellow-100 uppercase tracking-[0.2em]">
+                SUN
+              </span>
+            </div>
+            <div className="w-px h-4 bg-gradient-to-b from-yellow-500/60 to-transparent" />
+          </div>
+        </Html>
+      )}
     </group>
   );
 };

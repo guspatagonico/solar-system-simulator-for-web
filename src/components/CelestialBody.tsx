@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { Html, Line } from '@react-three/drei';
 import { CelestialBodyData, SimulationState } from '../types';
 import { SCALE_FACTORS } from '../constants';
 import GasGiantMaterial from './GasGiantMaterial';
@@ -31,8 +32,9 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
   
   if (rawDistance > 0) {
     if (data.type === 'moon') {
-      // For moons, use a simpler scaling to keep them close to their planets
-      compressedDistance = rawDistance * 20 * SCALE_FACTORS.DISTANCE;
+      // For moons, use real physical scale relative to the planet's base radius
+      // Independent of visual enhancement and distortion factors
+      compressedDistance = rawDistance * SCALE_FACTORS.PLANET_SIZE;
     } else {
       // For planets, use a power scale (d^0.6) to compress large distances
       compressedDistance = Math.pow(rawDistance, 0.6) * 10 * SCALE_FACTORS.DISTANCE;
@@ -48,6 +50,9 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
   const textureLoader = useMemo(() => new THREE.TextureLoader(), []);
   const texture = useMemo(() => textureLoader.load(data.textureUrl), [data.textureUrl]);
   
+  const bumpMap = useMemo(() => data.bumpUrl ? textureLoader.load(data.bumpUrl) : null, [data.bumpUrl]);
+  const specularMap = useMemo(() => data.specularUrl ? textureLoader.load(data.specularUrl) : null, [data.specularUrl]);
+
   const cloudTexture = useMemo(() => {
     if (data.atmosphere?.cloudsUrl) {
       return textureLoader.load(data.atmosphere.cloudsUrl);
@@ -77,14 +82,15 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
     }
 
     // Update rotation
-    if (meshRef.current) {
-      const rotationSpeed = (delta * state.timeScale) / (data.rotationPeriod / 24);
+    if (meshRef.current && data.rotationPeriod !== 0) {
+      const rotationSpeed = (delta * state.timeScale * Math.PI * 2) / ((data.rotationPeriod / 24) * SCALE_FACTORS.TIME);
       meshRef.current.rotation.y += rotationSpeed;
     }
 
     // Update clouds rotation (slightly faster)
-    if (cloudRef.current) {
-      cloudRef.current.rotation.y += (delta * state.timeScale * 1.2) / (data.rotationPeriod / 24);
+    if (cloudRef.current && data.rotationPeriod !== 0) {
+      const cloudRotationSpeed = (delta * state.timeScale * 1.2 * Math.PI * 2) / ((data.rotationPeriod / 24) * SCALE_FACTORS.TIME);
+      cloudRef.current.rotation.y += cloudRotationSpeed;
     }
   });
 
@@ -107,10 +113,13 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
     <group name={`${data.id}_container`}>
       {/* Orbit Path (Static relative to parent) */}
       {state.showOrbits && data.distanceFromParent > 0 && (
-        <line>
-          <bufferGeometry attach="geometry" setFromPoints={orbitPoints} />
-          <lineBasicMaterial attach="material" color="#ffffff" opacity={0.8} transparent />
-        </line>
+        <Line
+          points={orbitPoints}
+          color="#00ffff"
+          lineWidth={1.5}
+          transparent
+          opacity={0.5}
+        />
       )}
 
       {/* The Body and its children (Moons) */}
@@ -128,19 +137,35 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
         >
           <sphereGeometry args={[visualRadius, 64, 64]} />
           {data.type === 'star' ? (
-            <meshBasicMaterial map={texture} color={data.color} />
+            <meshBasicMaterial map={texture} color="#ffffff" />
           ) : isGasGiant ? (
             <GasGiantMaterial texture={texture} color={data.color} id={data.id} />
           ) : (
-            <meshStandardMaterial 
+            <meshPhongMaterial 
               map={texture} 
-              roughness={0.7} 
-              metalness={0.2} 
+              bumpMap={bumpMap || undefined}
+              bumpScale={0.05}
+              specularMap={specularMap || undefined}
+              specular={new THREE.Color(0x333333)}
+              shininess={25}
               emissive={data.color}
               emissiveIntensity={0.05}
             />
           )}
         </mesh>
+
+        {/* Sun Glow */}
+        {data.type === 'star' && (
+          <mesh>
+            <sphereGeometry args={[visualRadius * 1.2, 32, 32]} />
+            <meshBasicMaterial
+              color={data.color}
+              transparent
+              opacity={0.15}
+              side={THREE.BackSide}
+            />
+          </mesh>
+        )}
 
         {/* Atmosphere/Clouds */}
         {cloudTexture && (
@@ -181,6 +206,28 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
             onSelect={onSelect}
           />
         ))}
+
+        {/* Floating Label */}
+        {state.showLabels && (
+          <Html
+            position={[0, visualRadius + 2, 0]}
+            center
+            occlude
+            style={{
+              pointerEvents: 'none',
+              userSelect: 'none',
+            }}
+          >
+            <div className="flex flex-col items-center">
+              <div className="px-2 py-0.5 bg-black/60 backdrop-blur-sm border border-white/20 rounded-full whitespace-nowrap">
+                <span className="text-[10px] font-mono text-white/90 uppercase tracking-wider">
+                  {data.name}
+                </span>
+              </div>
+              <div className="w-px h-2 bg-gradient-to-b from-white/40 to-transparent" />
+            </div>
+          </Html>
+        )}
       </group>
     </group>
   );

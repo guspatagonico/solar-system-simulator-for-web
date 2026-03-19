@@ -14,7 +14,8 @@ import {
   ChevronRight, 
   Search,
   Maximize,
-  Minimize
+  Minimize,
+  Type
 } from 'lucide-react';
 
 interface Props {
@@ -111,7 +112,7 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
         <div className="bg-black/40 backdrop-blur-md border border-white/10 p-2 rounded-2xl flex items-center gap-4">
           <div className="flex items-center gap-1 px-2">
             <button 
-              onClick={() => setState(s => ({ ...s, timeScale: Math.max(0, s.timeScale - 0.1) }))}
+              onClick={() => setState(s => ({ ...s, timeScale: Math.max(1, s.timeScale / 10) }))}
               className="p-2 text-white/60 hover:text-white transition-colors"
             >
               <Rewind size={18} />
@@ -123,7 +124,7 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
               {state.isPaused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
             </button>
             <button 
-              onClick={() => setState(s => ({ ...s, timeScale: s.timeScale + 0.1 }))}
+              onClick={() => setState(s => ({ ...s, timeScale: Math.min(1000000, s.timeScale * 10) }))}
               className="p-2 text-white/60 hover:text-white transition-colors"
             >
               <FastForward size={18} />
@@ -135,7 +136,7 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
           <div className="flex items-center gap-4 px-4">
             <div className="flex flex-col items-center gap-1">
               <span className="text-[8px] font-mono text-white/40 uppercase">Time Speed</span>
-              <span className="text-xs text-white font-mono">{(state.timeScale * 100).toFixed(0)}%</span>
+              <span className="text-xs text-white font-mono">{state.timeScale.toLocaleString()}x</span>
             </div>
             <div className="flex flex-col items-center gap-1">
               <span className="text-[8px] font-mono text-white/40 uppercase">Scale Distortion</span>
@@ -148,8 +149,17 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
           <button 
             onClick={() => setState(s => ({ ...s, showOrbits: !s.showOrbits }))}
             className={`p-3 rounded-xl transition-colors ${state.showOrbits ? 'bg-blue-500/20 text-blue-400' : 'text-white/60 hover:text-white'}`}
+            title="Toggle Orbits"
           >
             {state.showOrbits ? <Eye size={20} /> : <EyeOff size={20} />}
+          </button>
+
+          <button 
+            onClick={() => setState(s => ({ ...s, showLabels: !s.showLabels }))}
+            className={`p-3 rounded-xl transition-colors ${state.showLabels ? 'bg-blue-500/20 text-blue-400' : 'text-white/60 hover:text-white'}`}
+            title="Toggle Labels"
+          >
+            <Type size={20} />
           </button>
         </div>
       </div>
@@ -226,15 +236,23 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-white/80">Time Scale</span>
-                    <span className="text-[10px] font-mono text-blue-400">{state.timeScale.toFixed(1)}x</span>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setState(s => ({ ...s, timeScale: 1 }))}
+                        className="text-[8px] font-mono px-2 py-1 bg-white/10 rounded-md hover:bg-white/20 text-white/60 hover:text-white transition-all"
+                      >
+                        REALTIME
+                      </button>
+                      <span className="text-[10px] font-mono text-blue-400">{state.timeScale.toLocaleString()}x</span>
+                    </div>
                   </div>
                   <input 
                     type="range" 
                     min="0" 
-                    max="10" 
+                    max="6" 
                     step="0.1"
-                    value={state.timeScale}
-                    onChange={(e) => setState(s => ({ ...s, timeScale: parseFloat(e.target.value) }))}
+                    value={Math.log10(state.timeScale)}
+                    onChange={(e) => setState(s => ({ ...s, timeScale: Math.pow(10, parseFloat(e.target.value)) }))}
                     className="w-full accent-blue-500"
                   />
                 </div>
@@ -246,8 +264,8 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
                   </div>
                   <input 
                     type="range" 
-                    min="0.01" 
-                    max="2.0" 
+                    min="1.0" 
+                    max="4.0" 
                     step="0.05"
                     value={state.ambientIntensity}
                     onChange={(e) => setState(s => ({ ...s, ambientIntensity: parseFloat(e.target.value) }))}
@@ -262,6 +280,16 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
                     className={`w-10 h-5 rounded-full transition-colors relative ${state.showOrbits ? 'bg-blue-500' : 'bg-white/10'}`}
                   >
                     <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${state.showOrbits ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/80">Show Labels</span>
+                  <button 
+                    onClick={() => setState(s => ({ ...s, showLabels: !s.showLabels }))}
+                    className={`w-10 h-5 rounded-full transition-colors relative ${state.showLabels ? 'bg-blue-500' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${state.showLabels ? 'left-6' : 'left-1'}`} />
                   </button>
                 </div>
               </div>

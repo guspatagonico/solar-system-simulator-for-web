@@ -10,7 +10,7 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
     orbitalPeriod: 0,
     rotationPeriod: 609.6,
     color: '#ffcc33',
-    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg', // Fallback, will use shader
+    textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg',
     description: 'The Sun is the star at the center of the Solar System. It is a nearly perfect sphere of hot plasma, heated to incandescence by nuclear fusion reactions in its core.',
   },
   {
@@ -55,6 +55,8 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
     eccentricity: 0.017,
     color: '#2233FF',
     textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg',
+    bumpUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_bump_2048.jpg',
+    specularUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_specular_2048.jpg',
     description: 'Earth is the third planet from the Sun and the only astronomical object known to harbor life. About 71% of Earth\'s surface is covered with water.',
     atmosphere: {
       color: '#4488FF',
@@ -67,7 +69,7 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
         name: 'Moon',
         type: 'moon',
         radius: 1737.4,
-        distanceFromParent: 30, // Adjusted for visibility
+        distanceFromParent: 384400,
         orbitalPeriod: 27.3,
         rotationPeriod: 655.7,
         eccentricity: 0.055,
@@ -100,7 +102,7 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
     rotationPeriod: 9.9,
     eccentricity: 0.048,
     color: '#D39C7E',
-    textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Jupiter_and_its_shades.jpg/1024px-Jupiter_and_its_shades.jpg',
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/jupiter.jpg',
     description: 'Jupiter is the fifth planet from the Sun and the largest in the Solar System. It is a gas giant with a mass more than two and a half times that of all the other planets combined.',
   },
   {
@@ -126,12 +128,12 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
         name: 'Titan',
         type: 'moon',
         radius: 2574.7,
-        distanceFromParent: 150,
+        distanceFromParent: 1221870,
         orbitalPeriod: 15.9,
         rotationPeriod: 382.7,
         eccentricity: 0.028,
         color: '#E3BB76',
-        textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/venus_surface.jpg', // Fallback
+        textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Titan_in_true_color.jpg',
         description: 'Titan is the largest moon of Saturn and the second-largest natural satellite in the Solar System. It is the only moon known to have a dense atmosphere.',
       },
       {
@@ -139,12 +141,12 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
         name: 'Rhea',
         type: 'moon',
         radius: 763.8,
-        distanceFromParent: 80,
-        orbitalPeriod: 4.5,
-        rotationPeriod: 108.4,
-        eccentricity: 0.001,
+        distanceFromParent: 527040,
+        orbitalPeriod: 4.518,
+        rotationPeriod: 108.43,
+        eccentricity: 0.001258,
         color: '#CCCCCC',
-        textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg',
+        textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Rhea_full_hemisphere.jpg/1024px-Rhea_full_hemisphere.jpg',
         description: 'Rhea is the second-largest moon of Saturn and the ninth-largest moon in the Solar System.',
       }
     ]
@@ -159,8 +161,13 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
     rotationPeriod: -17.2, // Retrograde
     eccentricity: 0.046,
     color: '#B5E3E3',
-    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/uranus.jpg', // Fallback
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/uranus.jpg',
     description: 'Uranus is the seventh planet from the Sun. Its name is a reference to the Greek god of the sky, Uranus. It has the third-largest planetary radius and fourth-largest planetary mass.',
+    rings: {
+      innerRadius: 38000,
+      outerRadius: 51149,
+      textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/saturn_ring_alpha.png', // Fallback for alpha
+    }
   },
   {
     id: 'neptune',
@@ -172,7 +179,7 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
     rotationPeriod: 16.1,
     eccentricity: 0.011,
     color: '#4B70DD',
-    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/neptune.jpg', // Fallback
+    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/neptune.jpg',
     description: 'Neptune is the eighth and farthest-known solar planet from the Sun. In the Solar System, it is the fourth-largest planet by diameter, the third-most-massive planet.',
   }
 ];
@@ -181,6 +188,6 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
 export const SCALE_FACTORS = {
   PLANET_SIZE: 0.00001, // 1km = 0.00001 units
   DISTANCE: 1.0, // 1 million km = 1.0 units
-  TIME: 0.01, // 1 Earth day = 0.01 simulation units
+  TIME: 86400, // 1 Earth day = 86400 seconds (real-time reference)
   VISUAL_ENHANCEMENT: 100, // Multiplier for planet sizes to make them visible
 };

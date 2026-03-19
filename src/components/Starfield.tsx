@@ -8,7 +8,7 @@ const Starfield: React.FC = () => {
       radius={100000}
       depth={50000}
       count={20000}
-      factor={10}
+      factor={4}
       saturation={0}
       fade
       speed={1}

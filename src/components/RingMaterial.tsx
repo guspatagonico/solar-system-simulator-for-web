@@ -77,15 +77,15 @@ const RingMaterial: React.FC<Props> = ({ texture, color }) => {
       vec3 lightDir = normalize(-vWorldPosition);
       
       // Diffuse lighting (double sided)
-      float diff = max(abs(dot(vNormal, lightDir)), 0.3);
+      float diff = max(abs(dot(vNormal, lightDir)), 0.45); // Increased ambient
       
       // Backscatter effect (glow when looking towards the sun through the rings)
-      float backscatter = pow(1.0 - abs(dot(vNormal, lightDir)), 4.0) * 0.4;
+      float backscatter = pow(1.0 - abs(dot(vNormal, lightDir)), 3.0) * 0.6; // Stronger backscatter
       
       // Specular-like shimmer
-      float specular = pow(max(dot(vNormal, lightDir), 0.0), 32.0) * 0.2;
+      float specular = pow(max(dot(vNormal, lightDir), 0.0), 32.0) * 0.3;
       
-      gl_FragColor = vec4(finalColor * diff + backscatter + specular, alpha * 0.9);
+      gl_FragColor = vec4(finalColor * diff + backscatter + specular, alpha * 0.95);
     }
   `;
 
