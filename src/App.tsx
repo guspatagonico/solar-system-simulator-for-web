@@ -31,7 +31,7 @@ const App: React.FC = () => {
 
   return (
     <div className="w-full h-screen bg-black overflow-hidden select-none">
-      <Canvas shadows gl={{ antialias: true, logarithmicDepthBuffer: true }}>
+      <Canvas shadows gl={{ antialias: true }}>
         <PerspectiveCamera makeDefault position={[0, 400, 800]} fov={45} near={0.1} far={100000} />
         
         <OrbitControls 

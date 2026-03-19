@@ -133,15 +133,37 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
 
           <div className="h-8 w-px bg-white/10" />
 
-          <div className="flex items-center gap-4 px-4">
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[8px] font-mono text-white/40 uppercase">Time Speed</span>
-              <span className="text-xs text-white font-mono">{state.timeScale.toLocaleString()}x</span>
+          <div className="flex flex-col gap-1 px-4 min-w-[120px]">
+            <div className="flex justify-between items-center">
+              <span className="text-[8px] font-mono text-white/40 uppercase">Time Scale</span>
+              <span className="text-[10px] font-mono text-blue-400">{state.timeScale.toLocaleString()}x</span>
             </div>
-            <div className="flex flex-col items-center gap-1">
+            <input 
+              type="range" 
+              min="0" 
+              max="6" 
+              step="0.1"
+              value={Math.log10(state.timeScale)}
+              onChange={(e) => setState(s => ({ ...s, timeScale: Math.pow(10, parseFloat(e.target.value)) }))}
+              className="w-full accent-blue-500 h-1"
+            />
+          </div>
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="flex flex-col gap-1 px-4 min-w-[120px]">
+            <div className="flex justify-between items-center">
               <span className="text-[8px] font-mono text-white/40 uppercase">Scale Distortion</span>
-              <span className="text-xs text-white font-mono">{state.visualEnhancement}x</span>
+              <span className="text-[10px] font-mono text-blue-400">{state.visualEnhancement}x</span>
             </div>
+            <input 
+              type="range" 
+              min="1" 
+              max="500" 
+              value={state.visualEnhancement}
+              onChange={(e) => setState(s => ({ ...s, visualEnhancement: parseInt(e.target.value) }))}
+              className="w-full accent-blue-500 h-1"
+            />
           </div>
 
           <div className="h-8 w-px bg-white/10" />

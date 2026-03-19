@@ -77,12 +77,15 @@ const Sun: React.FC<Props> = ({ radius, state }) => {
   return (
     <group>
       {/* Sun Core */}
-      <mesh ref={meshRef}>
+      <mesh ref={meshRef} renderOrder={-1}>
         <sphereGeometry args={[visualRadius, 64, 64]} />
         <shaderMaterial
           uniforms={sunShader.uniforms}
           vertexShader={sunShader.vertexShader}
           fragmentShader={sunShader.fragmentShader}
+          transparent={false}
+          depthWrite={true}
+          depthTest={true}
         />
       </mesh>
 
