@@ -100,7 +100,7 @@ export const SOLAR_SYSTEM_DATA: CelestialBodyData[] = [
     rotationPeriod: 9.9,
     eccentricity: 0.048,
     color: '#D39C7E',
-    textureUrl: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/jupiter.jpg',
+    textureUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Jupiter_and_its_shades.jpg/1024px-Jupiter_and_its_shades.jpg',
     description: 'Jupiter is the fifth planet from the Sun and the largest in the Solar System. It is a gas giant with a mass more than two and a half times that of all the other planets combined.',
   },
   {

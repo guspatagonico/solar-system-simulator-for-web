@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { CelestialBodyData, SimulationState } from '../types';
 import { SCALE_FACTORS } from '../constants';
 import GasGiantMaterial from './GasGiantMaterial';
+import RingMaterial from './RingMaterial';
 
 interface Props {
   data: CelestialBodyData;
@@ -164,13 +165,9 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
                 128
               ]}
             />
-            <meshStandardMaterial
-              map={textureLoader.load(data.rings.textureUrl)}
-              transparent
-              opacity={0.9}
-              side={THREE.DoubleSide}
-              roughness={0.5}
-              metalness={0.1}
+            <RingMaterial 
+              texture={textureLoader.load(data.rings.textureUrl)} 
+              color={data.color} 
             />
           </mesh>
         )}
