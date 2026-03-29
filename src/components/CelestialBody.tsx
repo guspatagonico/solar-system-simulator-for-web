@@ -213,6 +213,7 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
             position={[0, visualRadius + 2, 0]}
             center
             occlude
+            zIndexRange={[10, 0]}
             style={{
               pointerEvents: 'none',
               userSelect: 'none',
