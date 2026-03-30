@@ -4,19 +4,25 @@ import * as THREE from 'three';
 
 interface Props {
   texture: THREE.Texture;
+  isPaused: boolean;
+  timeScale: number;
 }
 
-const SunSurfaceMaterial: React.FC<Props> = ({ texture }) => {
+const SunSurfaceMaterial: React.FC<Props> = ({ texture, isPaused, timeScale }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const timeRef = useRef(0);
 
   const uniforms = useMemo(() => ({
     uTexture: { value: texture },
     uTime: { value: 0 },
   }), [texture]);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
+    if (!isPaused) {
+      timeRef.current += delta * timeScale;
+    }
     if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      materialRef.current.uniforms.uTime.value = timeRef.current;
     }
   });
 

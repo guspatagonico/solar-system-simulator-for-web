@@ -22,12 +22,14 @@ const Sun: React.FC<Props> = ({ radius, state }) => {
   const texture = useMemo(() => textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg'), [textureLoader]);
 
   useFrame((threeState, delta) => {
-    if (meshRef.current) {
-      const rotationSpeed = (delta * state.timeScale * Math.PI * 2) / (25.4 * SCALE_FACTORS.TIME);
-      meshRef.current.rotation.y += rotationSpeed;
-    }
-    if (glowRef.current) {
-      glowRef.current.rotation.y -= 0.002 * state.timeScale;
+    if (!state.isPaused) {
+      if (meshRef.current) {
+        const rotationSpeed = (delta * state.timeScale * Math.PI * 2) / (25.4 * SCALE_FACTORS.TIME);
+        meshRef.current.rotation.y += rotationSpeed;
+      }
+      if (glowRef.current) {
+        glowRef.current.rotation.y -= 0.002 * state.timeScale;
+      }
     }
   });
 
@@ -36,13 +38,13 @@ const Sun: React.FC<Props> = ({ radius, state }) => {
       {/* Sun Core */}
       <mesh ref={meshRef} renderOrder={-1}>
         <sphereGeometry args={[visualRadius, 64, 64]} />
-        <SunSurfaceMaterial texture={texture} />
+        <SunSurfaceMaterial texture={texture} isPaused={state.isPaused} timeScale={state.timeScale} />
       </mesh>
 
       {/* Sun Glow/Corona */}
       <mesh ref={glowRef}>
         <sphereGeometry args={[visualRadius * 1.15, 64, 64]} />
-        <SunCoronaMaterial />
+        <SunCoronaMaterial isPaused={state.isPaused} timeScale={state.timeScale} />
       </mesh>
 
       {/* Point Light - The main light source for the solar system */}

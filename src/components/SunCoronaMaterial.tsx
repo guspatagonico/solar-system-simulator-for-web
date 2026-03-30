@@ -2,16 +2,25 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const SunCoronaMaterial: React.FC = () => {
+interface Props {
+  isPaused: boolean;
+  timeScale: number;
+}
+
+const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const timeRef = useRef(0);
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
   }), []);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
+    if (!isPaused) {
+      timeRef.current += delta * timeScale;
+    }
     if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      materialRef.current.uniforms.uTime.value = timeRef.current;
     }
   });
 
