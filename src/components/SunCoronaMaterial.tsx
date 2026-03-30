@@ -74,95 +74,126 @@ const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale, visualRadius 
       return v;
     }
 
-    // 1D noise for streamer patterns (uses 2D noise for continuity)
-    float noise1D(float x) {
-      return noise(vec2(x, 0.0));
+    // Domain-warped noise for turbulent plasma motion
+    float warpedNoise(vec2 p, float t) {
+      // First level of warp
+      vec2 q = vec2(fbm(p + vec2(0.0, 0.0) + t * 0.03),
+                    fbm(p + vec2(5.2, 1.3) + t * 0.04));
+      // Second level of warp
+      vec2 r = vec2(fbm(p + 4.0 * q + vec2(1.7, 9.2) + t * 0.02),
+                    fbm(p + 4.0 * q + vec2(8.3, 2.8) + t * 0.03));
+      return fbm(p + 4.0 * r);
+    }
+
+    // High-frequency noise for fine filaments
+    float fineNoise(vec2 p) {
+      return fbm(p) * 0.5 + fbm(p * 2.0) * 0.25 + fbm(p * 4.0) * 0.125;
     }
 
     void main() {
       // Screen-space distance from sun center (in units of sun radius)
       float screenDist = length(vViewPos.xy);
-      float normalizedDist = screenDist / uVisualRadius; // 1.0 = sun's limb, 1.2 = corona outer edge
+      float normalizedDist = screenDist / uVisualRadius;
+      float limbDist = normalizedDist - 1.0; // 0 at sun's limb
+      float coronaWidth = 0.2;
 
-      // --- Inner edge: where corona meets the sun's limb ---
-      // Sun is at radius 1.0, corona starts at 1.0
-      // Corona fades from bright at 1.0 to nothing at 1.2+
-      float limbDist = normalizedDist - 1.0; // 0 at sun's limb, positive outward
-      float coronaWidth = 0.2; // Corona extends 20% beyond sun's radius
+      // --- Base radial fade ---
       float radialFade = 1.0 - smoothstep(0.0, coronaWidth, limbDist);
-      radialFade = pow(radialFade, 1.5); // Gentle curve, not too sharp
-
-      // Kill corona inside the sun's disc (depth test handles overlap, but just in case)
+      radialFade = pow(radialFade, 1.8);
       radialFade *= smoothstep(0.95, 1.05, normalizedDist);
 
-      // --- Angle for streamer patterns ---
-      float angle = atan(vViewPos.y, vViewPos.x); // -PI to PI
-      float t = uTime * 0.02;
+      // --- Angle ---
+      float angle = atan(vViewPos.y, vViewPos.x);
+      float t = uTime * 0.008; // SLOW: majestic plasma motion
 
-      // --- Streamers: asymmetric radial filaments ---
-      // Predefined streamer angles (some long, some short) based on real corona
-      // This creates the characteristic "starburst" pattern
+      // --- PLASMA TURBULENCE: warped noise for sizzling effect ---
+      // Coordinates in angle-radial space
+      vec2 plasmaCoord = vec2(angle * 8.0, limbDist * 30.0);
+      float plasma = warpedNoise(plasmaCoord, t);
+      float plasmaDetail = fineNoise(plasmaCoord * 2.0 + vec2(t * 0.5, 0.0));
+      float plasmaPattern = plasma * 0.7 + plasmaDetail * 0.3;
 
-      // Long streamers at specific angles (mimics real corona structure)
-      float streamer1 = pow(max(0.0, cos(angle - 0.5)), 20.0);  // ~30° above horizontal
-      float streamer2 = pow(max(0.0, cos(angle + 0.8)), 15.0);  // ~45° below left
-      float streamer3 = pow(max(0.0, cos(angle - 2.5)), 25.0);  // upper left
-      float streamer4 = pow(max(0.0, cos(angle + 2.8)), 18.0);  // lower right
-      float streamer5 = pow(max(0.0, cos(angle)), 30.0);         // right
-      float streamer6 = pow(max(0.0, cos(angle - PI)), 12.0);   // left (shorter)
+      // Plasma is strongest near limb, fades outward
+      float plasmaFade = pow(radialFade, 0.5);
+      float sizzle = plasmaPattern * plasmaFade * 0.4;
 
-      // Combine long streamers
-      float longStreamers = streamer1 + streamer2 + streamer3 + streamer4 + streamer5 + streamer6;
+      // --- FILAMENTS: fine radial lines ---
+      // Multiple angular frequencies for natural variation
+      float filamentBase = 0.0;
 
-      // Background: finer, shorter streamers everywhere
-      float fineStreamers = 0.0;
-      for (int i = 0; i < 8; i++) {
-        float a = float(i) * PI * 0.25 + noise1D(float(i) * 3.7) * 0.5;
-        fineStreamers += pow(max(0.0, cos(angle - a)), 8.0) * 0.15;
+      // Low-freq: broad streamer foundations
+      for (int i = 0; i < 6; i++) {
+        float baseAngle = float(i) * PI * 0.33 + noise(vec2(float(i) * 7.3, 0.0)) * 0.8;
+        float spread = 0.15 + noise(vec2(float(i) * 3.1, 1.0)) * 0.1;
+        float dist = abs(angle - baseAngle);
+        dist = min(dist, PI * 2.0 - dist); // wrap
+        filamentBase += exp(-pow(dist / spread, 2.0)) * (0.3 + noise(vec2(float(i) * 2.3, t * 0.5)) * 0.2);
       }
 
-      // Combine: long streamers extend further, fine streamers stay close to limb
-      float streamerPattern = longStreamers + fineStreamers;
+      // High-freq: fine filament texture (the "hair" of the corona)
+      float highFreqAngle = angle * 40.0 + warpedNoise(vec2(angle * 5.0, limbDist * 10.0), t) * 2.0;
+      float fineFilaments = pow(abs(sin(highFreqAngle)), 8.0);
+      fineFilaments *= 0.15 + plasmaPattern * 0.1;
 
-      // Streamer falloff: long streamers extend much further than base glow
-      float streamerRadial = 1.0 - smoothstep(0.0, coronaWidth * 2.5, limbDist);
-      streamerRadial = pow(streamerRadial, 2.0);
+      // Filament radial falloff: long streamers extend further
+      float filamentRadial = pow(radialFade, 0.6);
+      float filaments = (filamentBase * 0.6 + fineFilaments) * filamentRadial;
 
-      // Fine streamers stay closer to limb
-      float fineRadial = 1.0 - smoothstep(0.0, coronaWidth * 1.2, limbDist);
-      float totalStreamers = longStreamers * streamerRadial + fineStreamers * fineRadial;
+      // --- MAJOR STREAMERS: prominent spikes ---
+      float majorStreamers = 0.0;
+      // Predefined major streamer directions (asymmetric)
+      float angles[6];
+      angles[0] = 0.3; angles[1] = 1.2; angles[2] = 2.1;
+      angles[3] = 3.5; angles[4] = 4.4; angles[5] = 5.5;
+      float lengths[6];
+      lengths[0] = 1.0; lengths[1] = 0.7; lengths[2] = 0.9;
+      lengths[3] = 0.6; lengths[4] = 0.8; lengths[5] = 0.5;
 
-      // --- Bright inner ring at the limb (chromosphere transition) ---
-      float innerRing = exp(-pow((normalizedDist - 1.0) * 15.0, 2.0));
+      for (int i = 0; i < 6; i++) {
+        float spread = 0.08 + noise(vec2(float(i), t)) * 0.03;
+        float dist = abs(angle - angles[i]);
+        dist = min(dist, PI * 2.0 - dist);
+        float spike = exp(-pow(dist / spread, 2.0));
+        // Animate spike length slowly
+        float len = lengths[i] * (0.8 + noise(vec2(float(i) * 5.7, t * 0.3)) * 0.4);
+        float spikeRadial = 1.0 - smoothstep(0.0, coronaWidth * len * 2.5, limbDist);
+        majorStreamers += spike * spikeRadial * 0.8;
+      }
 
-      // --- Slow shimmer / animation ---
-      float shimmer = noise(vec2(angle * 3.0 + uTime * 0.1, uTime * 0.05));
-      shimmer = shimmer * 0.15 + 0.85;
+      // --- INNER BRIGHT RING ---
+      float innerRing = exp(-pow((normalizedDist - 1.0) * 20.0, 2.0));
 
-      // --- Equatorial enhancement (real corona is brighter at equator) ---
-      float equator = 1.0 - smoothstep(0.0, 0.6, abs(vViewPos.z));
+      // --- Dynamic plasma pulses (very slow) ---
+      float pulse1 = sin(t * 0.5 + angle * 2.0) * 0.1;
+      float pulse2 = sin(t * 0.3 - angle * 3.0) * 0.08;
+      float pulse3 = cos(t * 0.7 + limbDist * 5.0) * 0.05;
+      float dynamics = 1.0 + pulse1 + pulse2 + pulse3;
 
-      // --- Combine ---
-      float glow = radialFade * 0.4 * shimmer;
-      float streamers = totalStreamers * 0.6;
-      float ring = innerRing * 0.8;
+      // --- Combine all layers ---
+      float baseGlow = radialFade * 0.35;
+      float plasmaLayer = sizzle * 1.5;
+      float filamentLayer = filaments * 0.5;
+      float streamerLayer = majorStreamers;
+      float ringLayer = innerRing * 0.9;
 
-      float intensity = glow + streamers + ring * 0.5;
-      intensity *= (0.7 + equator * 0.3); // Brighter at equator
+      float intensity = (baseGlow + plasmaLayer + filamentLayer + streamerLayer + ringLayer) * dynamics;
+      intensity = clamp(intensity, 0.0, 2.5);
 
       // --- Colors ---
-      vec3 whiteColor = vec3(1.0, 0.98, 0.9);
-      vec3 yellowColor = vec3(1.0, 0.85, 0.5);
-      vec3 orangeColor = vec3(1.0, 0.5, 0.1);
+      vec3 whiteHot = vec3(1.0, 1.0, 0.95);
+      vec3 warmYellow = vec3(1.0, 0.88, 0.5);
+      vec3 orange = vec3(1.0, 0.55, 0.15);
+      vec3 deepOrange = vec3(0.9, 0.3, 0.05);
 
-      // Inner: white, middle: yellow, outer: orange
-      vec3 color = mix(whiteColor, yellowColor, smoothstep(1.0, 1.1, normalizedDist));
-      color = mix(color, orangeColor, smoothstep(1.1, 1.2, normalizedDist));
+      // Color by distance from limb
+      vec3 color = mix(whiteHot, warmYellow, smoothstep(0.0, 0.05, limbDist));
+      color = mix(color, orange, smoothstep(0.05, 0.12, limbDist));
+      color = mix(color, deepOrange, smoothstep(0.12, 0.2, limbDist));
 
-      // Streamers are slightly yellower
-      color = mix(color, yellowColor, totalStreamers * 0.3);
+      // Hotter plasma in turbulent regions
+      color = mix(color, whiteHot, plasmaPattern * 0.2);
 
-      gl_FragColor = vec4(color * intensity, intensity * 0.9);
+      gl_FragColor = vec4(color * intensity, intensity * 0.85);
     }
   `;
 
