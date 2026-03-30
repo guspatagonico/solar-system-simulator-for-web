@@ -32,7 +32,7 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
   }
 
   const a = compressedDistance;
-  const e = data.eccentricity || 0;
+  const e = THREE.MathUtils.clamp(data.eccentricity || 0, 0, 0.999);
   const b = a * Math.sqrt(1 - e * e);
   const focusOffset = a * e;
 
@@ -46,8 +46,7 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
   const tailUniforms = useMemo(() => ({
     uTime: { value: 0 },
     uColor: { value: tailColor },
-    uTailLength: { value: tailLength },
-  }), [tailColor, tailLength]);
+  }), [tailColor]);
 
   const tailVertexShader = `
     varying vec2 vUv;
@@ -61,7 +60,6 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
   const tailFragmentShader = `
     uniform float uTime;
     uniform vec3 uColor;
-    uniform float uTailLength;
     varying vec2 vUv;
 
     float hash(vec2 p) {
@@ -148,7 +146,12 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
       groupRef.current.position.set(x, 0, z);
 
       if (tailRef.current) {
-        awayDir.copy(groupRef.current.position).normalize();
+        awayDir.copy(groupRef.current.position);
+        if (awayDir.lengthSq() < 1e-8) {
+          awayDir.set(1, 0, 0);
+        } else {
+          awayDir.normalize();
+        }
         tailRef.current.position.copy(awayDir).multiplyScalar(visualRadius * 2 + tailLength / 2);
         tailRef.current.quaternion.setFromUnitVectors(xAxis, awayDir);
       }
@@ -217,7 +220,6 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
         <mesh
           ref={tailRef}
           position={[-visualRadius * 2 - tailLength / 2, 0, 0]}
-          rotation={[0, 0, 0]}
         >
           <primitive object={tailGeometry} attach="geometry" />
           <shaderMaterial
