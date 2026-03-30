@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CelestialBodyData, SimulationState } from '../types';
-import { SOLAR_SYSTEM_DATA } from '../constants';
+import { SOLAR_SYSTEM_DATA, MINOR_BODIES_DATA } from '../constants';
 import { 
   Info, 
   Settings, 
@@ -209,6 +209,29 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: planet.color }} />
                       <span className="text-sm font-medium">{planet.name}</span>
+                    </div>
+                    <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                ))}
+
+                <div className="pt-3 pb-1 px-2">
+                  <h4 className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Minor Bodies</h4>
+                </div>
+
+                {MINOR_BODIES_DATA.filter(body => body.type !== 'asteroid-belt').map(body => (
+                  <button
+                    key={body.id}
+                    onClick={() => onJumpTo(body.id)}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-all group ${
+                      state.focusedBodyId === body.id ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: body.color }} />
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{body.name}</span>
+                        <span className="text-[10px] font-mono uppercase tracking-wide text-white/40">{body.type}</span>
+                      </div>
                     </div>
                     <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>

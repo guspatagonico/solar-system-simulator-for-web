@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { SOLAR_SYSTEM_DATA, SCALE_FACTORS } from '../constants';
+import { ALL_BODIES, SCALE_FACTORS } from '../constants';
 
 interface Props {
   focusedBodyId: string | null;
@@ -65,7 +65,7 @@ const CameraManager: React.FC<Props> = ({ focusedBodyId, visualEnhancement }) =>
       const ease = 1 - Math.pow(1 - t, 3); // Cubic ease out
 
       // Calculate ideal distance for the transition
-      const bodyData = SOLAR_SYSTEM_DATA.find(d => d.id === focusedBodyId);
+      const bodyData = ALL_BODIES.find(d => d.id === focusedBodyId);
       let targetDistance = 500;
       let visualRadius = 10;
 
