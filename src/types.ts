@@ -1,7 +1,7 @@
 export interface CelestialBodyData {
   id: string;
   name: string;
-  type: 'star' | 'planet' | 'moon';
+  type: 'star' | 'planet' | 'moon' | 'dwarf-planet' | 'asteroid-belt' | 'comet' | 'kbo';
   radius: number; // in km
   distanceFromParent: number; // in million km
   orbitalPeriod: number; // in Earth days
@@ -23,6 +23,7 @@ export interface CelestialBodyData {
   };
   bumpUrl?: string;
   specularUrl?: string;
+  tailColor?: string; // Comets only — color of the tail
 }
 
 export interface SimulationState {
