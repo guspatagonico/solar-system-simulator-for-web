@@ -14,7 +14,10 @@ interface Props {
 const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const tailRef = useRef<THREE.Mesh>(null);
   const tailMaterialRef = useRef<THREE.ShaderMaterial>(null);
+  const xAxis = useMemo(() => new THREE.Vector3(1, 0, 0), []);
+  const awayDir = useMemo(() => new THREE.Vector3(), []);
 
   const baseRadius = data.radius * SCALE_FACTORS.PLANET_SIZE;
   const distortionFactor = Math.pow(6371 / data.radius, 0.3);
@@ -143,6 +146,12 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
       const x = a * Math.cos(angle) - focusOffset;
       const z = b * Math.sin(angle);
       groupRef.current.position.set(x, 0, z);
+
+      if (tailRef.current) {
+        awayDir.copy(groupRef.current.position).normalize();
+        tailRef.current.position.copy(awayDir).multiplyScalar(visualRadius * 2 + tailLength / 2);
+        tailRef.current.quaternion.setFromUnitVectors(xAxis, awayDir);
+      }
     }
 
     if (!state.isPaused && meshRef.current && data.rotationPeriod !== 0) {
@@ -206,6 +215,7 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
 
         {/* Comet tail: plane extending away from the Sun */}
         <mesh
+          ref={tailRef}
           position={[-visualRadius * 2 - tailLength / 2, 0, 0]}
           rotation={[0, 0, 0]}
         >
