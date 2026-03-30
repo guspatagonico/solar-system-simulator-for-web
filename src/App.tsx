@@ -3,12 +3,13 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { SimulationState, CelestialBodyData } from './types';
-import { SOLAR_SYSTEM_DATA, SCALE_FACTORS } from './constants';
+import { SOLAR_SYSTEM_DATA, SCALE_FACTORS, ALL_BODIES } from './constants';
 import CelestialBody from './components/CelestialBody';
 import Sun from './components/Sun';
 import HUD from './components/HUD';
 import Starfield from './components/Starfield';
 import CameraManager from './components/CameraManager';
+import MinorBodyRenderer from './components/MinorBodyRenderer';
 
 const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>({
@@ -22,7 +23,7 @@ const App: React.FC = () => {
   });
 
   const focusedBody = useMemo(() => 
-    SOLAR_SYSTEM_DATA.find(b => b.id === state.focusedBodyId) || null
+    ALL_BODIES.find(b => b.id === state.focusedBodyId) || null
   , [state.focusedBodyId]);
 
   const handleJumpTo = (id: string) => {
@@ -64,6 +65,8 @@ const App: React.FC = () => {
             );
           })}
         </group>
+
+        <MinorBodyRenderer state={state} onSelect={handleJumpTo} />
 
         {/* Camera Manager for smooth transitions */}
         <CameraManager focusedBodyId={state.focusedBodyId} visualEnhancement={state.visualEnhancement} />
