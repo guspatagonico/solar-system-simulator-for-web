@@ -131,7 +131,7 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
 
   const timeRef = useRef(0);
 
-  useFrame((threeState, delta) => {
+  useFrame((_, delta) => {
     if (!state.isPaused) {
       timeRef.current += delta * state.timeScale;
     }
@@ -145,13 +145,13 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
       groupRef.current.position.set(x, 0, z);
     }
 
-    if (meshRef.current && data.rotationPeriod !== 0) {
+    if (!state.isPaused && meshRef.current && data.rotationPeriod !== 0) {
       const rotationSpeed = (delta * state.timeScale * Math.PI * 2) / ((data.rotationPeriod / 24) * SCALE_FACTORS.TIME);
       meshRef.current.rotation.y += rotationSpeed;
     }
 
     if (tailMaterialRef.current) {
-      tailMaterialRef.current.uniforms.uTime.value = threeState.clock.elapsedTime;
+      tailMaterialRef.current.uniforms.uTime.value = time;
     }
   });
 
