@@ -79,7 +79,7 @@ const SunSurfaceMaterial: React.FC<Props> = ({ texture }) => {
       float granulation = fbm(granUv);
       // Bright granules with darker intergranular lanes
       float granules = smoothstep(0.3, 0.7, granulation) * 0.3;
-      vec3 granColor = baseColor + vec3(granules) * 0.3;
+      vec3 granColor = baseColor + vec3(granules);
 
       // Sunspots: low-frequency noise thresholded
       vec2 spotUv = vUv * 3.0;
@@ -102,10 +102,7 @@ const SunSurfaceMaterial: React.FC<Props> = ({ texture }) => {
       float pulsation = sin(uTime * 2.0) * 0.02 + 1.0;
       finalColor *= pulsation;
 
-      // Simple lighting
-      float intensity = max(dot(vNormal, normalize(vec3(0.0, 0.0, 1.0))), 0.5);
-      
-      gl_FragColor = vec4(finalColor * intensity, 1.0);
+      gl_FragColor = vec4(finalColor, 1.0);
     }
   `;
 
