@@ -43,7 +43,7 @@ const Sun: React.FC<Props> = ({ radius, state }) => {
 
       {/* Sun Glow/Corona */}
       <mesh ref={glowRef}>
-        <sphereGeometry args={[visualRadius * 1.15, 64, 64]} />
+        <sphereGeometry args={[visualRadius * 1.4, 64, 64]} />
         <SunCoronaMaterial isPaused={state.isPaused} timeScale={state.timeScale} />
       </mesh>
 

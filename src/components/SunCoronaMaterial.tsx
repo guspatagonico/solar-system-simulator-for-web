@@ -44,6 +44,8 @@ const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale }) => {
     varying vec3 vNormal;
     varying vec3 vViewDir;
 
+    #define PI 3.14159265359
+
     float hash(vec2 p) {
       p = fract(p * vec2(123.34, 456.21));
       p += dot(p, p + 45.32);
@@ -72,35 +74,82 @@ const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale }) => {
       return v;
     }
 
-    float warpedFbm(vec2 p, float t) {
-      vec2 q = vec2(fbm(p + t * 0.1), fbm(p + vec2(5.2, 1.3) + t * 0.12));
-      vec2 r = vec2(fbm(p + 4.0 * q + vec2(1.7, 9.2) + t * 0.08),
-                    fbm(p + 4.0 * q + vec2(8.3, 2.8) + t * 0.1));
-      return fbm(p + 4.0 * r);
+    // Smooth value noise for streamer modulation
+    float smoothNoise(vec2 p) {
+      return fbm(p);
     }
 
     void main() {
-      // Fresnel edge glow: brighter at sphere edges, dim at center
+      // Fresnel: bright at edges, dim at center (BackSide inverts)
       float fresnel = 1.0 - max(dot(vNormal, vViewDir), 0.0);
-      fresnel = pow(fresnel, 1.5);
+      fresnel = pow(fresnel, 1.8);
 
-      // Domain-warped fBm wispy tendrils
-      vec2 coronaUv = vUv * 4.0;
-      float wisps = warpedFbm(coronaUv, uTime);
+      // Polar coordinates from UV (sphere mapping)
+      // vUv.x = longitude (0-1), vUv.y = latitude (0-1)
+      float angle = vUv.x * PI * 2.0;
+      float radialPos = abs(vUv.y - 0.5) * 2.0; // 0 at equator, 1 at poles
 
-      // Color gradient: white-yellow inner to orange-red outer (based on Fresnel)
-      vec3 innerColor = vec3(1.0, 0.95, 0.7);
+      // --- INNER CORONA: smooth, bright glow ---
+      float innerGlow = fresnel * 0.9;
+
+      // --- RADIAL STREAMERS: long thin filaments ---
+      // Streamer base pattern: varies with angle
+      // Use noise along angle to create asymmetric streamers
+      float t = uTime * 0.05;
+      float streamerNoise1 = smoothNoise(vec2(angle * 3.0, t));
+      float streamerNoise2 = smoothNoise(vec2(angle * 7.0 + 5.0, t * 0.7));
+      float streamerNoise3 = smoothNoise(vec2(angle * 2.0 + 10.0, t * 0.3));
+
+      // Combine noise to create streamer intensity per angle
+      // Some angles get strong streamers, others are dim
+      float streamerIntensity = streamerNoise1 * 0.5 + streamerNoise2 * 0.3 + streamerNoise3 * 0.2;
+      streamerIntensity = pow(streamerIntensity, 1.5); // Sharpen contrast
+
+      // Radial falloff: streamers extend outward from the sun
+      // Inner region: dense, outer region: thin filaments
+      float radialFalloff = 1.0 - smoothstep(0.0, 1.0, fresnel);
+      radialFalloff = pow(radialFalloff, 0.8);
+
+      // Thin filament modulation: create narrow bright lines
+      // Use high-frequency angular noise to thin out the streamers
+      float filamentNoise = smoothNoise(vec2(angle * 20.0, fresnel * 5.0 + t * 0.2));
+      float filaments = pow(filamentNoise, 2.5); // Very sharp = very thin
+
+      // Streamer length variation: some extend further
+      float lengthNoise = smoothNoise(vec2(angle * 4.0 + 3.0, t * 0.15));
+      float maxLength = 0.3 + lengthNoise * 0.7; // Varies from 30% to 100%
+      float lengthMask = 1.0 - smoothstep(0.0, maxLength, fresnel);
+
+      // Combine streamers
+      float streamers = streamerIntensity * filaments * lengthMask * 1.2;
+
+      // --- EQUATORIAL BRIGHTENING: real corona is brighter at equator ---
+      float equatorBright = 1.0 - smoothstep(0.0, 0.5, radialPos);
+      equatorBright = pow(equatorBright, 2.0) * 0.4;
+
+      // --- POLAR STREAMERS: longer at poles, real magnetic field effect ---
+      float polarBoost = smoothstep(0.3, 0.8, radialPos) * 0.3;
+      streamers *= (1.0 + polarBoost);
+
+      // --- Combine everything ---
+      float totalIntensity = innerGlow + streamers + equatorBright;
+
+      // Slow rotation of the whole corona
+      float slowRotate = smoothNoise(vec2(angle + uTime * 0.02, 0.5));
+      totalIntensity *= 0.85 + slowRotate * 0.3;
+
+      // Color: white-yellow core, orange-red streamers
+      vec3 coreColor = vec3(1.0, 0.97, 0.8);
+      vec3 streamerColor = vec3(1.0, 0.6, 0.15);
       vec3 outerColor = vec3(1.0, 0.35, 0.05);
-      vec3 baseColor = mix(innerColor, outerColor, fresnel);
 
-      // Subtle color variation from wisps
-      float wispColorShift = warpedFbm(coronaUv + vec2(3.7, 1.9), uTime * 0.8);
-      baseColor = mix(baseColor, baseColor * (0.8 + wispColorShift * 0.4), 0.3);
+      vec3 color = mix(coreColor, streamerColor, smoothstep(0.0, 0.3, fresnel));
+      color = mix(color, outerColor, smoothstep(0.3, 0.8, fresnel));
 
-      // Combine: intensity driven by fresnel, modulated by wisps
-      float intensity = fresnel * (0.5 + wisps * 0.8);
+      // Streamers get a slightly different tint
+      color = mix(color, vec3(1.0, 0.7, 0.3), streamers * 0.3);
 
-      gl_FragColor = vec4(baseColor * intensity, intensity);
+      gl_FragColor = vec4(color * totalIntensity, totalIntensity * 0.75);
     }
   `;
 
