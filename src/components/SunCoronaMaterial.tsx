@@ -74,124 +74,115 @@ const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale, visualRadius 
       return v;
     }
 
-    // Domain-warped noise for turbulent plasma motion
-    float warpedNoise(vec2 p, float t) {
-      // First level of warp
-      vec2 q = vec2(fbm(p + vec2(0.0, 0.0) + t * 0.03),
-                    fbm(p + vec2(5.2, 1.3) + t * 0.04));
-      // Second level of warp
-      vec2 r = vec2(fbm(p + 4.0 * q + vec2(1.7, 9.2) + t * 0.02),
-                    fbm(p + 4.0 * q + vec2(8.3, 2.8) + t * 0.03));
-      return fbm(p + 4.0 * r);
-    }
+    // Turbulent plasma noise: multi-scale warped fbm
+    float plasma(vec2 p, float t) {
+      // Slow large-scale swirls
+      vec2 q1 = vec2(
+        fbm(p + vec2(0.0, 0.0) + t * 0.02),
+        fbm(p + vec2(5.2, 1.3) + t * 0.025)
+      );
+      vec2 r1 = vec2(
+        fbm(p + 3.0 * q1 + vec2(1.7, 9.2) + t * 0.015),
+        fbm(p + 3.0 * q1 + vec2(8.3, 2.8) + t * 0.02)
+      );
+      float large = fbm(p + 3.0 * r1);
 
-    // High-frequency noise for fine filaments
-    float fineNoise(vec2 p) {
-      return fbm(p) * 0.5 + fbm(p * 2.0) * 0.25 + fbm(p * 4.0) * 0.125;
+      // Medium-scale detail
+      vec2 q2 = vec2(
+        fbm(p * 2.0 + vec2(3.1, 7.4) + t * 0.03),
+        fbm(p * 2.0 + vec2(1.9, 4.8) + t * 0.035)
+      );
+      float medium = fbm(p * 2.0 + 2.0 * q2);
+
+      // Small-scale texture
+      float small = fbm(p * 4.0 + t * 0.04);
+
+      return large * 0.5 + medium * 0.3 + small * 0.2;
     }
 
     void main() {
-      // Screen-space distance from sun center (in units of sun radius)
+      // Screen-space distance from sun center
       float screenDist = length(vViewPos.xy);
       float normalizedDist = screenDist / uVisualRadius;
-      float limbDist = normalizedDist - 1.0; // 0 at sun's limb
+      float limbDist = max(normalizedDist - 1.0, 0.0); // 0 at limb, positive outward
+
+      // --- SMOOTH BASE GLOW: the luminous shell ---
+      // Extends 20% beyond the sun's limb
       float coronaWidth = 0.2;
+      float baseGlow = 1.0 - smoothstep(0.0, coronaWidth, limbDist);
+      baseGlow = pow(baseGlow, 1.2);
 
-      // --- Base radial fade ---
-      float radialFade = 1.0 - smoothstep(0.0, coronaWidth, limbDist);
-      radialFade = pow(radialFade, 1.8);
-      radialFade *= smoothstep(0.95, 1.05, normalizedDist);
+      // Kill inside sun's disc
+      baseGlow *= smoothstep(0.98, 1.02, normalizedDist);
 
-      // --- Angle ---
+      // --- TURBULENT PLASMA: organic flowing patterns ---
       float angle = atan(vViewPos.y, vViewPos.x);
-      float t = uTime * 0.008; // SLOW: majestic plasma motion
+      float t = uTime * 0.006; // VERY SLOW: majestic plasma
 
-      // --- PLASMA TURBULENCE: warped noise for sizzling effect ---
-      // Coordinates in angle-radial space
-      vec2 plasmaCoord = vec2(angle * 8.0, limbDist * 30.0);
-      float plasma = warpedNoise(plasmaCoord, t);
-      float plasmaDetail = fineNoise(plasmaCoord * 2.0 + vec2(t * 0.5, 0.0));
-      float plasmaPattern = plasma * 0.7 + plasmaDetail * 0.3;
+      // Map to polar-like coordinates for plasma
+      // Angle wraps naturally, radial goes from 0 (at limb) to 1 (at outer edge)
+      float radialNorm = clamp(limbDist / coronaWidth, 0.0, 1.0);
+      vec2 plasmaCoord = vec2(angle * 2.5, radialNorm * 4.0);
 
-      // Plasma is strongest near limb, fades outward
-      float plasmaFade = pow(radialFade, 0.5);
-      float sizzle = plasmaPattern * plasmaFade * 0.4;
+      float turb = plasma(plasmaCoord, t);
 
-      // --- FILAMENTS: fine radial lines ---
-      // Multiple angular frequencies for natural variation
-      float filamentBase = 0.0;
+      // Plasma creates bright/dark patches on top of the base glow
+      // Turbulent regions are slightly brighter, calm regions slightly dimmer
+      float plasmaMod = 0.7 + turb * 0.6;
 
-      // Low-freq: broad streamer foundations
-      for (int i = 0; i < 6; i++) {
-        float baseAngle = float(i) * PI * 0.33 + noise(vec2(float(i) * 7.3, 0.0)) * 0.8;
-        float spread = 0.15 + noise(vec2(float(i) * 3.1, 1.0)) * 0.1;
-        float dist = abs(angle - baseAngle);
-        dist = min(dist, PI * 2.0 - dist); // wrap
-        filamentBase += exp(-pow(dist / spread, 2.0)) * (0.3 + noise(vec2(float(i) * 2.3, t * 0.5)) * 0.2);
+      // --- FINE FILAMENTS: hair-like radial streaks ---
+      // These flow with the turbulence, not at fixed angles
+      float filaments = 0.0;
+
+      // Radial noise displacement creates the filament look
+      for (int i = 0; i < 3; i++) {
+        float scale = float(i + 1) * 12.0;
+        float shift = float(i) * 1.7;
+        // Angle-variation creates thin radial lines
+        float f = sin(angle * scale + turb * 3.0 + shift + t * 0.5);
+        f = pow(abs(f), 12.0 - float(i) * 2.0); // Very thin lines
+        filaments += f * (0.1 - float(i) * 0.02);
       }
 
-      // High-freq: fine filament texture (the "hair" of the corona)
-      float highFreqAngle = angle * 40.0 + warpedNoise(vec2(angle * 5.0, limbDist * 10.0), t) * 2.0;
-      float fineFilaments = pow(abs(sin(highFreqAngle)), 8.0);
-      fineFilaments *= 0.15 + plasmaPattern * 0.1;
+      // Filaments fade with distance from limb
+      filaments *= baseGlow;
 
-      // Filament radial falloff: long streamers extend further
-      float filamentRadial = pow(radialFade, 0.6);
-      float filaments = (filamentBase * 0.6 + fineFilaments) * filamentRadial;
+      // --- LONG STREAMERS: subtle, organic extensions ---
+      // Much softer than before - just slightly longer bright regions
+      float streamers = 0.0;
+      // Use noise to create uneven bright regions along the angle
+      float streamerPattern = fbm(vec2(angle * 3.0, t * 0.2));
+      streamerPattern = pow(streamerPattern, 2.0); // Sharpen slightly
+      // These extend further but are subtle
+      float streamerReach = 1.0 - smoothstep(0.0, coronaWidth * 1.8, limbDist);
+      streamers = streamerPattern * streamerReach * 0.25;
 
-      // --- MAJOR STREAMERS: prominent spikes ---
-      float majorStreamers = 0.0;
-      // Predefined major streamer directions (asymmetric)
-      float angles[6];
-      angles[0] = 0.3; angles[1] = 1.2; angles[2] = 2.1;
-      angles[3] = 3.5; angles[4] = 4.4; angles[5] = 5.5;
-      float lengths[6];
-      lengths[0] = 1.0; lengths[1] = 0.7; lengths[2] = 0.9;
-      lengths[3] = 0.6; lengths[4] = 0.8; lengths[5] = 0.5;
+      // --- INNER RING: bright chromosphere transition ---
+      float innerRing = exp(-pow((normalizedDist - 1.0) * 25.0, 2.0));
 
-      for (int i = 0; i < 6; i++) {
-        float spread = 0.08 + noise(vec2(float(i), t)) * 0.03;
-        float dist = abs(angle - angles[i]);
-        dist = min(dist, PI * 2.0 - dist);
-        float spike = exp(-pow(dist / spread, 2.0));
-        // Animate spike length slowly
-        float len = lengths[i] * (0.8 + noise(vec2(float(i) * 5.7, t * 0.3)) * 0.4);
-        float spikeRadial = 1.0 - smoothstep(0.0, coronaWidth * len * 2.5, limbDist);
-        majorStreamers += spike * spikeRadial * 0.8;
-      }
+      // --- Combine ---
+      float intensity = baseGlow * plasmaMod + filaments * 0.15 + streamers + innerRing * 0.6;
 
-      // --- INNER BRIGHT RING ---
-      float innerRing = exp(-pow((normalizedDist - 1.0) * 20.0, 2.0));
+      // Slow global brightness pulsation
+      float breathe = sin(t * 0.3) * 0.05 + 1.0;
+      intensity *= breathe;
 
-      // --- Dynamic plasma pulses (very slow) ---
-      float pulse1 = sin(t * 0.5 + angle * 2.0) * 0.1;
-      float pulse2 = sin(t * 0.3 - angle * 3.0) * 0.08;
-      float pulse3 = cos(t * 0.7 + limbDist * 5.0) * 0.05;
-      float dynamics = 1.0 + pulse1 + pulse2 + pulse3;
+      intensity = clamp(intensity, 0.0, 2.0);
 
-      // --- Combine all layers ---
-      float baseGlow = radialFade * 0.35;
-      float plasmaLayer = sizzle * 1.5;
-      float filamentLayer = filaments * 0.5;
-      float streamerLayer = majorStreamers;
-      float ringLayer = innerRing * 0.9;
+      // --- COLORS: white-hot inner, golden middle, orange outer ---
+      vec3 whiteHot = vec3(1.0, 0.98, 0.9);
+      vec3 golden = vec3(1.0, 0.85, 0.45);
+      vec3 orange = vec3(1.0, 0.5, 0.1);
+      vec3 deepOrange = vec3(0.8, 0.25, 0.03);
 
-      float intensity = (baseGlow + plasmaLayer + filamentLayer + streamerLayer + ringLayer) * dynamics;
-      intensity = clamp(intensity, 0.0, 2.5);
+      // Color gradient by distance from limb
+      float colorT = radialNorm;
+      vec3 color = mix(whiteHot, golden, smoothstep(0.0, 0.15, colorT));
+      color = mix(color, orange, smoothstep(0.15, 0.5, colorT));
+      color = mix(color, deepOrange, smoothstep(0.5, 1.0, colorT));
 
-      // --- Colors ---
-      vec3 whiteHot = vec3(1.0, 1.0, 0.95);
-      vec3 warmYellow = vec3(1.0, 0.88, 0.5);
-      vec3 orange = vec3(1.0, 0.55, 0.15);
-      vec3 deepOrange = vec3(0.9, 0.3, 0.05);
-
-      // Color by distance from limb
-      vec3 color = mix(whiteHot, warmYellow, smoothstep(0.0, 0.05, limbDist));
-      color = mix(color, orange, smoothstep(0.05, 0.12, limbDist));
-      color = mix(color, deepOrange, smoothstep(0.12, 0.2, limbDist));
-
-      // Hotter plasma in turbulent regions
-      color = mix(color, whiteHot, plasmaPattern * 0.2);
+      // Turbulent regions get slightly hotter (whiter) color
+      color = mix(color, whiteHot, (turb - 0.5) * 0.15);
 
       gl_FragColor = vec4(color * intensity, intensity * 0.85);
     }

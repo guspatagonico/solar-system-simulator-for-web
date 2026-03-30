@@ -76,9 +76,14 @@ const SunSurfaceMaterial: React.FC<Props> = ({ texture, isPaused, timeScale }) =
     }
 
     void main() {
-      // Base texture
-      vec4 texColor = texture2D(uTexture, vUv);
-      vec3 baseColor = texColor.rgb;
+      // Base texture with seam blending (blend at u=0/1 boundary)
+      float seamWidth = 0.01; // Width of seam blend zone
+      vec2 uv1 = vUv;
+      vec2 uv2 = vec2(vUv.x + (vUv.x < 0.5 ? 1.0 : -1.0), vUv.y); // Offset by 1 for seam
+      float seamBlend = 1.0 - smoothstep(0.0, seamWidth, min(vUv.x, 1.0 - vUv.x));
+      vec4 texColor1 = texture2D(uTexture, uv1);
+      vec4 texColor2 = texture2D(uTexture, uv2);
+      vec3 baseColor = mix(texColor1.rgb, texColor2.rgb, seamBlend);
 
       // Granulation: 5-octave fBm noise
       vec2 granUv = vUv * 30.0 + uTime * 0.02;
