@@ -6,12 +6,13 @@ import { SimulationState, CelestialBodyData } from './types';
 import { SOLAR_SYSTEM_DATA, SCALE_FACTORS, ALL_BODIES } from './constants';
 import CelestialBody from './components/CelestialBody';
 import Sun from './components/Sun';
-import HUD from './components/HUD';
+import HUD, { CameraPOV } from './components/HUD';
 import Starfield from './components/Starfield';
 import CameraManager from './components/CameraManager';
 import MinorBodyRenderer from './components/MinorBodyRenderer';
 
 const App: React.FC = () => {
+  const [cameraPOV, setCameraPOV] = useState<CameraPOV | null>(null);
   const [state, setState] = useState<SimulationState>({
     timeScale: 100,
     visualEnhancement: 16,
@@ -32,6 +33,11 @@ const App: React.FC = () => {
 
   const handleJumpTo = (id: string) => {
     setState(s => ({ ...s, focusedBodyId: id }));
+    setCameraPOV(null);
+  };
+
+  const handleCameraPOV = (pov: CameraPOV) => {
+    setCameraPOV(pov);
   };
 
   return (
@@ -74,14 +80,19 @@ const App: React.FC = () => {
         <MinorBodyRenderer state={state} onSelect={handleJumpTo} />
 
         {/* Camera Manager for smooth transitions */}
-        <CameraManager focusedBodyId={state.focusedBodyId} visualEnhancement={state.visualEnhancement} />
+        <CameraManager 
+          focusedBodyId={state.focusedBodyId} 
+          visualEnhancement={state.visualEnhancement}
+          cameraPOV={cameraPOV}
+        />
       </Canvas>
 
       <HUD 
         state={state} 
         setState={setState} 
         focusedBody={focusedBody} 
-        onJumpTo={handleJumpTo} 
+        onJumpTo={handleJumpTo}
+        onCameraPOV={handleCameraPOV}
       />
 
       {/* Global styles for scrollbar and UI */}

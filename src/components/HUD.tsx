@@ -19,17 +19,76 @@ import {
   Globe,
   Circle,
   Sparkles,
-  Wand2
+  Wand2,
+  Satellite,
+  Orbit,
+  Globe2,
+  Sunrise,
+  View
 } from 'lucide-react';
+
+export interface CameraPOV {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+  position: [number, number, number];
+  target: [number, number, number];
+}
+
+export const CAMERA_POVS: CameraPOV[] = [
+  {
+    id: 'overview',
+    name: 'Overview',
+    icon: <View size={16} />,
+    position: [0, 5000, 8000],
+    target: [0, 0, 0],
+  },
+  {
+    id: 'ecliptic',
+    name: 'Ecliptic',
+    icon: <Orbit size={16} />,
+    position: [10000, 200, 0],
+    target: [0, 0, 0],
+  },
+  {
+    id: 'north-pole',
+    name: 'North Pole',
+    icon: <Satellite size={16} />,
+    position: [0, 10000, 100],
+    target: [0, 0, 0],
+  },
+  {
+    id: 'earth-view',
+    name: 'Earth View',
+    icon: <Globe2 size={16} />,
+    position: [152, 10, 50],
+    target: [0, 0, 0],
+  },
+  {
+    id: 'sun-closeup',
+    name: 'Sun Close-up',
+    icon: <Sunrise size={16} />,
+    position: [50, 20, 30],
+    target: [0, 0, 0],
+  },
+  {
+    id: 'asteroid-belt',
+    name: 'Asteroid Belt',
+    icon: <Sparkles size={16} />,
+    position: [400, 100, 400],
+    target: [0, 0, 0],
+  },
+];
 
 interface Props {
   state: SimulationState;
   setState: React.Dispatch<React.SetStateAction<SimulationState>>;
   focusedBody: CelestialBodyData | null;
   onJumpTo: (id: string) => void;
+  onCameraPOV?: (pov: CameraPOV) => void;
 }
 
-const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
+const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo, onCameraPOV }) => {
   const [showSettings, setShowSettings] = React.useState(false);
   const [showPlanets, setShowPlanets] = React.useState(false);
 
@@ -221,6 +280,30 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
           >
             <Wand2 size={20} />
           </button>
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="relative group">
+            <button 
+              className="p-3 rounded-xl transition-colors text-white/60 hover:text-white"
+              title="Camera POV"
+            >
+              <View size={20} />
+            </button>
+            <div className="absolute left-full ml-2 bottom-full mb-2 bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[160px]">
+              <p className="text-[8px] font-mono text-white/40 uppercase tracking-widest px-2 mb-2">Camera POV</p>
+              {CAMERA_POVS.map((pov) => (
+                <button
+                  key={pov.id}
+                  onClick={() => onCameraPOV?.(pov)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-white/70 hover:bg-white/10 hover:text-white text-left text-sm"
+                >
+                  {pov.icon}
+                  <span>{pov.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
