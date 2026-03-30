@@ -5,15 +5,17 @@ import * as THREE from 'three';
 interface Props {
   isPaused: boolean;
   timeScale: number;
+  visualRadius: number;
 }
 
-const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale }) => {
+const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale, visualRadius }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const timeRef = useRef(0);
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
-  }), []);
+    uVisualRadius: { value: visualRadius },
+  }), [visualRadius]);
 
   useFrame((state, delta) => {
     if (!isPaused) {
@@ -25,24 +27,22 @@ const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale }) => {
   });
 
   const vertexShader = `
-    varying vec2 vUv;
+    varying vec3 vViewPos;
     varying vec3 vNormal;
-    varying vec3 vViewDir;
 
     void main() {
-      vUv = uv;
       vNormal = normalize(normalMatrix * normal);
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-      vViewDir = normalize(-mvPosition.xyz);
+      vViewPos = mvPosition.xyz;
       gl_Position = projectionMatrix * mvPosition;
     }
   `;
 
   const fragmentShader = `
     uniform float uTime;
-    varying vec2 vUv;
+    uniform float uVisualRadius;
+    varying vec3 vViewPos;
     varying vec3 vNormal;
-    varying vec3 vViewDir;
 
     #define PI 3.14159265359
 
@@ -74,68 +74,95 @@ const SunCoronaMaterial: React.FC<Props> = ({ isPaused, timeScale }) => {
       return v;
     }
 
-    // Smooth value noise for streamer modulation
-    float smoothNoise(vec2 p) {
-      return fbm(p);
+    // 1D noise for streamer patterns (uses 2D noise for continuity)
+    float noise1D(float x) {
+      return noise(vec2(x, 0.0));
     }
 
     void main() {
-      // With BackSide rendering: fresnel is HIGH at inner edge (limb), LOW at outer edge
-      float fresnel = 1.0 - max(dot(vNormal, vViewDir), 0.0);
+      // Screen-space distance from sun center (in units of sun radius)
+      float screenDist = length(vViewPos.xy);
+      float normalizedDist = screenDist / uVisualRadius; // 1.0 = sun's limb, 1.2 = corona outer edge
 
-      // Polar coordinates
-      float angle = vUv.x * PI * 2.0;
-      float radialPos = abs(vUv.y - 0.5) * 2.0; // 0 at equator, 1 at poles
+      // --- Inner edge: where corona meets the sun's limb ---
+      // Sun is at radius 1.0, corona starts at 1.0
+      // Corona fades from bright at 1.0 to nothing at 1.2+
+      float limbDist = normalizedDist - 1.0; // 0 at sun's limb, positive outward
+      float coronaWidth = 0.2; // Corona extends 20% beyond sun's radius
+      float radialFade = 1.0 - smoothstep(0.0, coronaWidth, limbDist);
+      radialFade = pow(radialFade, 1.5); // Gentle curve, not too sharp
 
-      float t = uTime * 0.05;
+      // Kill corona inside the sun's disc (depth test handles overlap, but just in case)
+      radialFade *= smoothstep(0.95, 1.05, normalizedDist);
 
-      // --- Radial falloff: bright at inner edge, fading to nothing ---
-      // fresnel ≈ 1 at inner edge (near sun), ≈ 0 at outer edge
-      // Use power curve for sharp falloff — corona mostly lives near the sun
-      float radialFade = pow(fresnel, 3.5);
+      // --- Angle for streamer patterns ---
+      float angle = atan(vViewPos.y, vViewPos.x); // -PI to PI
+      float t = uTime * 0.02;
 
-      // --- Streamers: thin filaments that extend further than the glow ---
-      float s1 = smoothNoise(vec2(angle * 3.0, t));
-      float s2 = smoothNoise(vec2(angle * 7.0 + 5.0, t * 0.7));
-      float s3 = smoothNoise(vec2(angle * 2.0 + 10.0, t * 0.3));
-      float streamerPattern = s1 * 0.5 + s2 * 0.3 + s3 * 0.2;
-      streamerPattern = pow(streamerPattern, 2.0);
+      // --- Streamers: asymmetric radial filaments ---
+      // Predefined streamer angles (some long, some short) based on real corona
+      // This creates the characteristic "starburst" pattern
 
-      // Filaments: thin bright lines
-      float filaments = pow(smoothNoise(vec2(angle * 25.0, fresnel * 8.0 + t * 0.15)), 3.0);
+      // Long streamers at specific angles (mimics real corona structure)
+      float streamer1 = pow(max(0.0, cos(angle - 0.5)), 20.0);  // ~30° above horizontal
+      float streamer2 = pow(max(0.0, cos(angle + 0.8)), 15.0);  // ~45° below left
+      float streamer3 = pow(max(0.0, cos(angle - 2.5)), 25.0);  // upper left
+      float streamer4 = pow(max(0.0, cos(angle + 2.8)), 18.0);  // lower right
+      float streamer5 = pow(max(0.0, cos(angle)), 30.0);         // right
+      float streamer6 = pow(max(0.0, cos(angle - PI)), 12.0);   // left (shorter)
 
-      // Streamer length: some extend much further outward
-      float lengthNoise = smoothNoise(vec2(angle * 4.0 + 3.0, t * 0.12));
-      float maxReach = 0.15 + lengthNoise * 0.85;
-      float streamerReach = pow(fresnel, 1.0 + (1.0 - maxReach) * 4.0);
+      // Combine long streamers
+      float longStreamers = streamer1 + streamer2 + streamer3 + streamer4 + streamer5 + streamer6;
 
-      float streamers = streamerPattern * filaments * streamerReach;
+      // Background: finer, shorter streamers everywhere
+      float fineStreamers = 0.0;
+      for (int i = 0; i < 8; i++) {
+        float a = float(i) * PI * 0.25 + noise1D(float(i) * 3.7) * 0.5;
+        fineStreamers += pow(max(0.0, cos(angle - a)), 8.0) * 0.15;
+      }
 
-      // --- Equatorial glow: real corona is brighter at equator ---
-      float equatorGlow = pow(1.0 - smoothstep(0.0, 0.4, radialPos), 3.0) * 0.5;
+      // Combine: long streamers extend further, fine streamers stay close to limb
+      float streamerPattern = longStreamers + fineStreamers;
 
-      // --- Polar enhancement: streamers longer at poles ---
-      float polarBoost = smoothstep(0.3, 0.8, radialPos) * 0.4;
-      streamers *= (1.0 + polarBoost);
+      // Streamer falloff: long streamers extend much further than base glow
+      float streamerRadial = 1.0 - smoothstep(0.0, coronaWidth * 2.5, limbDist);
+      streamerRadial = pow(streamerRadial, 2.0);
 
-      // --- Slow rotation ---
-      float rotation = smoothNoise(vec2(angle + uTime * 0.015, 0.5));
-      float rotMod = 0.8 + rotation * 0.4;
+      // Fine streamers stay closer to limb
+      float fineRadial = 1.0 - smoothstep(0.0, coronaWidth * 1.2, limbDist);
+      float totalStreamers = longStreamers * streamerRadial + fineStreamers * fineRadial;
 
-      // --- Combine: base glow + streamers ---
-      float glow = radialFade * rotMod * 0.6;
-      float intensity = glow + streamers * 0.8 + equatorGlow * radialFade;
+      // --- Bright inner ring at the limb (chromosphere transition) ---
+      float innerRing = exp(-pow((normalizedDist - 1.0) * 15.0, 2.0));
+
+      // --- Slow shimmer / animation ---
+      float shimmer = noise(vec2(angle * 3.0 + uTime * 0.1, uTime * 0.05));
+      shimmer = shimmer * 0.15 + 0.85;
+
+      // --- Equatorial enhancement (real corona is brighter at equator) ---
+      float equator = 1.0 - smoothstep(0.0, 0.6, abs(vViewPos.z));
+
+      // --- Combine ---
+      float glow = radialFade * 0.4 * shimmer;
+      float streamers = totalStreamers * 0.6;
+      float ring = innerRing * 0.8;
+
+      float intensity = glow + streamers + ring * 0.5;
+      intensity *= (0.7 + equator * 0.3); // Brighter at equator
 
       // --- Colors ---
-      vec3 innerColor = vec3(1.0, 0.95, 0.75);
-      vec3 midColor = vec3(1.0, 0.55, 0.1);
-      vec3 tipColor = vec3(0.9, 0.25, 0.02);
+      vec3 whiteColor = vec3(1.0, 0.98, 0.9);
+      vec3 yellowColor = vec3(1.0, 0.85, 0.5);
+      vec3 orangeColor = vec3(1.0, 0.5, 0.1);
 
-      vec3 color = mix(innerColor, midColor, smoothstep(0.0, 0.5, 1.0 - fresnel));
-      color = mix(color, tipColor, smoothstep(0.5, 1.0, 1.0 - fresnel));
-      color = mix(color, vec3(1.0, 0.75, 0.3), streamers * 0.25);
+      // Inner: white, middle: yellow, outer: orange
+      vec3 color = mix(whiteColor, yellowColor, smoothstep(1.0, 1.1, normalizedDist));
+      color = mix(color, orangeColor, smoothstep(1.1, 1.2, normalizedDist));
 
-      gl_FragColor = vec4(color * intensity, intensity);
+      // Streamers are slightly yellower
+      color = mix(color, yellowColor, totalStreamers * 0.3);
+
+      gl_FragColor = vec4(color * intensity, intensity * 0.9);
     }
   `;
 

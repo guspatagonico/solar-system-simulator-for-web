@@ -44,7 +44,7 @@ const Sun: React.FC<Props> = ({ radius, state }) => {
       {/* Sun Glow/Corona */}
       <mesh ref={glowRef}>
         <sphereGeometry args={[visualRadius * 1.2, 64, 64]} />
-        <SunCoronaMaterial isPaused={state.isPaused} timeScale={state.timeScale} />
+        <SunCoronaMaterial isPaused={state.isPaused} timeScale={state.timeScale} visualRadius={visualRadius} />
       </mesh>
 
       {/* Point Light - The main light source for the solar system */}
