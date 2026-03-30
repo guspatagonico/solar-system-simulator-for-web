@@ -31,6 +31,10 @@ export interface SimulationState {
   visualEnhancement: number; // 1 = realistic, higher = visual enhancement (scale distortion)
   showOrbits: boolean;
   showLabels: boolean;
+  showPlanets: boolean;
+  showDwarfPlanets: boolean;
+  showKBOs: boolean;
+  showComets: boolean;
   focusedBodyId: string | null;
   isPaused: boolean;
   ambientIntensity: number;

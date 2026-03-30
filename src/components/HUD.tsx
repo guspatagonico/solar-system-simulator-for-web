@@ -15,7 +15,11 @@ import {
   Search,
   Maximize,
   Minimize,
-  Type
+  Type,
+  Globe,
+  Circle,
+  Sparkles,
+  Wand2
 } from 'lucide-react';
 
 interface Props {
@@ -159,7 +163,7 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
             <input 
               type="range" 
               min="1" 
-              max="500" 
+              max="100" 
               value={state.visualEnhancement}
               onChange={(e) => setState(s => ({ ...s, visualEnhancement: parseInt(e.target.value) }))}
               className="w-full accent-blue-500 h-1"
@@ -182,6 +186,40 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
             title="Toggle Labels"
           >
             <Type size={20} />
+          </button>
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <button 
+            onClick={() => setState(s => ({ ...s, showPlanets: !s.showPlanets }))}
+            className={`p-3 rounded-xl transition-colors ${state.showPlanets ? 'bg-blue-500/20 text-blue-400' : 'text-white/60 hover:text-white'}`}
+            title="Toggle Planets"
+          >
+            <Globe size={20} />
+          </button>
+
+          <button 
+            onClick={() => setState(s => ({ ...s, showDwarfPlanets: !s.showDwarfPlanets }))}
+            className={`p-3 rounded-xl transition-colors ${state.showDwarfPlanets ? 'bg-blue-500/20 text-blue-400' : 'text-white/60 hover:text-white'}`}
+            title="Toggle Dwarf Planets"
+          >
+            <Circle size={20} />
+          </button>
+
+          <button 
+            onClick={() => setState(s => ({ ...s, showKBOs: !s.showKBOs }))}
+            className={`p-3 rounded-xl transition-colors ${state.showKBOs ? 'bg-blue-500/20 text-blue-400' : 'text-white/60 hover:text-white'}`}
+            title="Toggle KBOs"
+          >
+            <Sparkles size={20} />
+          </button>
+
+          <button 
+            onClick={() => setState(s => ({ ...s, showComets: !s.showComets }))}
+            className={`p-3 rounded-xl transition-colors ${state.showComets ? 'bg-blue-500/20 text-blue-400' : 'text-white/60 hover:text-white'}`}
+            title="Toggle Comets"
+          >
+            <Wand2 size={20} />
           </button>
         </div>
       </div>
@@ -271,7 +309,7 @@ const HUD: React.FC<Props> = ({ state, setState, focusedBody, onJumpTo }) => {
                   <input 
                     type="range" 
                     min="1" 
-                    max="500" 
+                    max="100" 
                     value={state.visualEnhancement}
                     onChange={(e) => setState(s => ({ ...s, visualEnhancement: parseInt(e.target.value) }))}
                     className="w-full accent-blue-500"

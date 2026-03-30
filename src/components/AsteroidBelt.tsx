@@ -11,7 +11,7 @@ const AsteroidBelt: React.FC<Props> = ({ state }) => {
   const pointsRef = useRef<THREE.Points>(null);
 
   const { positions, colors } = useMemo(() => {
-    const count = 5000;
+    const count = 12000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
 
@@ -28,14 +28,14 @@ const AsteroidBelt: React.FC<Props> = ({ state }) => {
       const semiMinor = semiMajor * Math.sqrt(1 - eccentricity * eccentricity);
 
       positions[i * 3] = semiMajor * Math.cos(angle) - semiMajor * eccentricity * Math.random();
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 2;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 4;
       positions[i * 3 + 2] = semiMinor * Math.sin(angle);
 
-      const brightness = 0.4 + Math.random() * 0.4;
-      const warmth = Math.random() * 0.1;
+      const brightness = 0.6 + Math.random() * 0.4;
+      const warmth = 0.1 + Math.random() * 0.2;
       colors[i * 3] = brightness + warmth;
-      colors[i * 3 + 1] = brightness * 0.9;
-      colors[i * 3 + 2] = brightness * 0.75;
+      colors[i * 3 + 1] = brightness * 0.7;
+      colors[i * 3 + 2] = brightness * 0.5;
     }
 
     return { positions, colors };
@@ -57,10 +57,10 @@ const AsteroidBelt: React.FC<Props> = ({ state }) => {
   return (
     <points ref={pointsRef} geometry={geometry}>
       <pointsMaterial
-        size={0.5}
+        size={1.5}
         vertexColors
         transparent
-        opacity={0.8}
+        opacity={1}
         sizeAttenuation
       />
     </points>

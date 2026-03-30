@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { Html, Line } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import { CelestialBodyData, SimulationState } from '../types';
 import { SCALE_FACTORS } from '../constants';
 import GasGiantMaterial from './GasGiantMaterial';
@@ -95,31 +95,34 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
   });
 
   // Create elliptical path for visualization
-  const orbitPoints = useMemo(() => {
-    if (data.orbitalPeriod <= 0) return [];
-    const points = [];
-    for (let i = 0; i <= 128; i++) {
-      const angle = (i / 128) * Math.PI * 2;
-      const x = a * Math.cos(angle) - focusOffset;
-      const z = b * Math.sin(angle);
-      points.push(new THREE.Vector3(x, 0, z));
-    }
-    return points;
+  const orbitGeometry = useMemo(() => {
+    if (data.orbitalPeriod <= 0) return null;
+    const curve = new THREE.EllipseCurve(
+      -focusOffset,
+      0,
+      a,
+      b,
+      0,
+      2 * Math.PI,
+      false,
+      0
+    );
+    const points2D = curve.getPoints(512);
+    const points = points2D.map(p => new THREE.Vector3(p.x, 0, p.y));
+    return new THREE.BufferGeometry().setFromPoints(points);
   }, [a, b, focusOffset, data.orbitalPeriod]);
 
   const isGasGiant = ['jupiter', 'saturn', 'uranus', 'neptune'].includes(data.id);
 
+  const orbitColor = data.type === 'planet' ? '#00ffff' : '#ff44ff';
+
   return (
     <group name={`${data.id}_container`}>
       {/* Orbit Path (Static relative to parent) */}
-      {state.showOrbits && data.distanceFromParent > 0 && (
-        <Line
-          points={orbitPoints}
-          color="#00ffff"
-          lineWidth={1.5}
-          transparent
-          opacity={0.5}
-        />
+      {state.showOrbits && data.distanceFromParent > 0 && orbitGeometry && (
+        <line geometry={orbitGeometry}>
+          <lineBasicMaterial color={orbitColor} transparent opacity={0.8} />
+        </line>
       )}
 
       {/* The Body and its children (Moons) */}
@@ -214,12 +217,14 @@ const CelestialBody: React.FC<Props> = ({ data, state, onSelect }) => {
             center
             occlude
             zIndexRange={[10, 0]}
-            style={{
-              pointerEvents: 'none',
-              userSelect: 'none',
-            }}
           >
-            <div className="flex flex-col items-center">
+            <div 
+              className="flex flex-col items-center cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(data.id);
+              }}
+            >
               <div className="px-2 py-0.5 bg-black/60 backdrop-blur-sm border border-white/20 rounded-full whitespace-nowrap">
                 <span className="text-[10px] font-mono text-white/90 uppercase tracking-wider">
                   {data.name}
