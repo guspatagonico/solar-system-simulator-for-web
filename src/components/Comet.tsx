@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { Html, Line } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import { CelestialBodyData, SimulationState } from '../types';
 import { SCALE_FACTORS } from '../constants';
 
@@ -50,9 +50,11 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
 
   const tailVertexShader = `
     varying vec2 vUv;
+    varying vec3 vPosition;
 
     void main() {
       vUv = uv;
+      vPosition = position;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `;
@@ -61,6 +63,7 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
     uniform float uTime;
     uniform vec3 uColor;
     varying vec2 vUv;
+    varying vec3 vPosition;
 
     float hash(vec2 p) {
       p = fract(p * vec2(123.34, 456.21));
@@ -91,42 +94,36 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
     }
 
     void main() {
-      // vUv.x: 0 = head, 1 = tip (along tail length)
-      // vUv.y: 0 = bottom edge, 1 = top edge (across tail width)
-
-      // Fade from head to tip
-      float fade = 1.0 - smoothstep(0.0, 1.0, vUv.x);
-      fade = pow(fade, 1.5);
-
-      // Fan out at the tip: widen the tail as it extends
-      float fanFactor = 1.0 + vUv.x * 1.5;
-
-      // Flowing noise animation along the tail
-      float flowSpeed = 2.0;
-      vec2 noiseCoord = vec2(vUv.x * 4.0 - uTime * flowSpeed, vUv.y * 3.0 + uTime * 0.5);
+      // For cone: vUv.y goes from 0 at base to 1 at tip (along length)
+      // Radial distance from center axis in vPosition.xz
+      
+      float distFromAxis = length(vPosition.xz);
+      float maxRadius = 0.5; // cone radius at base
+      
+      // Fade along length: bright at comet, fades to tip
+      float lengthFade = 1.0 - vUv.y;
+      lengthFade = pow(lengthFade, 0.8);
+      
+      // Radial fade: center is bright, edges fade
+      float radialFade = 1.0 - smoothstep(0.0, maxRadius * (1.0 - vUv.y * 0.8), distFromAxis);
+      
+      // Animated noise for gas/dust effect
+      float flowSpeed = 3.0;
+      vec2 noiseCoord = vec2(vUv.y * 6.0 - uTime * flowSpeed, atan(vPosition.x, vPosition.z) * 2.0);
       float n = fbm(noiseCoord);
-
-      // Secondary noise for detail
-      vec2 noiseCoord2 = vec2(vUv.x * 8.0 - uTime * flowSpeed * 0.7, vUv.y * 6.0);
+      
+      vec2 noiseCoord2 = vec2(vUv.y * 12.0 - uTime * flowSpeed * 0.8, atan(vPosition.x, vPosition.z) * 4.0);
       float n2 = fbm(noiseCoord2) * 0.5;
-
-      // Center-weighted: tail is brightest in the middle, fading at edges
-      float centerDist = abs(vUv.y - 0.5) * 2.0;
-      float centerFade = 1.0 - smoothstep(0.0, 1.0, centerDist / fanFactor);
-
-      // Combine: fade * noise * center weight
-      float alpha = fade * (n * 0.7 + n2 * 0.3) * centerFade;
+      
+      // Combine fades
+      float alpha = lengthFade * radialFade * (0.6 + n * 0.4 + n2 * 0.2);
       alpha = clamp(alpha, 0.0, 1.0);
-
-      // Color variation: brighter near head, dimmer at tip
-      vec3 color = uColor * (0.8 + n * 0.4);
-      color = mix(color, uColor * 1.2, fade * 0.3);
-
-      // Add subtle blue-white streaks near the head
-      float streaks = smoothstep(0.6, 0.0, vUv.x) * n2 * 0.3;
-      color += vec3(0.3, 0.4, 0.5) * streaks;
-
-      gl_FragColor = vec4(color, alpha * 0.7);
+      
+      // Color: brighter at head, slight variation with noise
+      vec3 color = uColor * (0.7 + n * 0.3);
+      color = mix(color, uColor * 1.3, lengthFade * 0.4);
+      
+      gl_FragColor = vec4(color, alpha * 0.6);
     }
   `;
 
@@ -152,8 +149,8 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
         } else {
           awayDir.normalize();
         }
-        tailRef.current.position.copy(awayDir).multiplyScalar(visualRadius * 2 + tailLength / 2);
-        tailRef.current.quaternion.setFromUnitVectors(xAxis, awayDir);
+        tailRef.current.position.copy(awayDir).multiplyScalar(visualRadius * 1.5);
+        tailRef.current.lookAt(groupRef.current.position.clone().add(awayDir));
       }
     }
 
@@ -167,33 +164,37 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
     }
   });
 
-  const orbitPoints = useMemo(() => {
-    if (data.orbitalPeriod <= 0) return [];
-    const points = [];
-    for (let i = 0; i <= 128; i++) {
-      const angle = (i / 128) * Math.PI * 2;
-      const px = a * Math.cos(angle) - focusOffset;
-      const pz = b * Math.sin(angle);
-      points.push(new THREE.Vector3(px, 0, pz));
-    }
-    return points;
+  const orbitGeometry = useMemo(() => {
+    if (data.orbitalPeriod <= 0) return null;
+    const curve = new THREE.EllipseCurve(
+      -focusOffset,
+      0,
+      a,
+      b,
+      0,
+      2 * Math.PI,
+      false,
+      0
+    );
+    const points2D = curve.getPoints(512);
+    const points = points2D.map(p => new THREE.Vector3(p.x, 0, p.y));
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    return geo;
   }, [a, b, focusOffset, data.orbitalPeriod]);
 
   const tailGeometry = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(tailLength, tailWidth, 32, 8);
+    const geo = new THREE.ConeGeometry(tailWidth * 0.5, tailLength, 32, 8, true);
+    geo.rotateX(Math.PI / 2);
+    geo.translate(0, 0, tailLength / 2);
     return geo;
   }, [tailLength, tailWidth]);
 
   return (
     <group name={`${data.id}_container`}>
-      {state.showOrbits && data.distanceFromParent > 0 && (
-        <Line
-          points={orbitPoints}
-          color="#00ffff"
-          lineWidth={1.5}
-          transparent
-          opacity={0.5}
-        />
+      {state.showOrbits && data.distanceFromParent > 0 && orbitGeometry && (
+        <line geometry={orbitGeometry}>
+          <lineBasicMaterial color="#00ff88" transparent opacity={0.8} />
+        </line>
       )}
 
       <group ref={groupRef} name={data.id}>
@@ -241,8 +242,13 @@ const Comet: React.FC<Props> = ({ data, state, onSelect }) => {
             occlude
             zIndexRange={[10, 0]}
             style={{
-              pointerEvents: 'none',
+              pointerEvents: 'auto',
               userSelect: 'none',
+              cursor: 'pointer',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(data.id);
             }}
           >
             <div className="flex flex-col items-center">

@@ -93,11 +93,7 @@ const CameraManager: React.FC<Props> = ({ focusedBodyId, visualEnhancement }) =>
       
       // Update limits
       controls.minDistance = visualRadius * 1.5;
-      if (focusedBodyId === 'sun') {
-        controls.maxDistance = 10000;
-      } else {
-        controls.maxDistance = visualRadius * 50;
-      }
+      controls.maxDistance = 500000;
       
       lastWorldPos.current.copy(worldPos);
     } else {

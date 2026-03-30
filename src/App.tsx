@@ -13,10 +13,14 @@ import MinorBodyRenderer from './components/MinorBodyRenderer';
 
 const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>({
-    timeScale: 10000,
+    timeScale: 100,
     visualEnhancement: 16,
     showOrbits: true,
     showLabels: true,
+    showPlanets: true,
+    showDwarfPlanets: true,
+    showKBOs: true,
+    showComets: true,
     focusedBodyId: 'sun',
     isPaused: false,
     ambientIntensity: 1.5,
@@ -51,10 +55,11 @@ const App: React.FC = () => {
             if (body.type === 'star') {
               return (
                 <group key={body.id} name={body.id}>
-                  <Sun radius={body.radius} state={state} />
+                  <Sun radius={body.radius} state={state} onSelect={handleJumpTo} />
                 </group>
               );
             }
+            if (body.type === 'planet' && !state.showPlanets) return null;
             return (
               <CelestialBody
                 key={body.id}

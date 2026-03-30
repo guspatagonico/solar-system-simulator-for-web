@@ -10,9 +10,10 @@ import SunCoronaMaterial from './SunCoronaMaterial';
 interface Props {
   radius: number;
   state: SimulationState;
+  onSelect: (id: string) => void;
 }
 
-const Sun: React.FC<Props> = ({ radius, state }) => {
+const Sun: React.FC<Props> = ({ radius, state, onSelect }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
 
@@ -64,12 +65,14 @@ const Sun: React.FC<Props> = ({ radius, state }) => {
           center
           occlude
           zIndexRange={[10, 0]}
-          style={{
-            pointerEvents: 'none',
-            userSelect: 'none',
-          }}
         >
-            <div className="flex flex-col items-center">
+            <div 
+              className="flex flex-col items-center cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect('sun');
+              }}
+            >
               <div className="px-3 py-1 bg-yellow-500/20 backdrop-blur-md border border-yellow-500/40 rounded-full whitespace-nowrap shadow-[0_0_15px_rgba(234,179,8,0.3)]">
                 <span className="text-xs font-bold text-yellow-100 uppercase tracking-[0.2em]">
                   SUN
